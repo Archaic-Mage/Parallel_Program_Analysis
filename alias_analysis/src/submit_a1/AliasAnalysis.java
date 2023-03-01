@@ -24,6 +24,7 @@ import soot.toolkits.graph.UnitGraph;
 
 public class AliasAnalysis extends BodyTransformer{
 
+
     //the out contains static info stack and heap
     public class Out {
 		//Og indicates global reference
@@ -41,9 +42,22 @@ public class AliasAnalysis extends BodyTransformer{
 				}
 				this.rho_data.put(name, u_rho);
 			}
-
 			//Union of sigma_data
-
+			for(String ref: a.sigma_data.keySet()) {
+				if(!this.sigma_data.containsKey(ref)) {
+					this.sigma_data.put(ref, a.sigma_data.get(ref));
+				} else {
+					for(String field: a.sigma_data.get(ref).keySet()) {
+						Set<String> u_f_sig;
+						if(!this.sigma_data.get(ref).containsKey(field)) {
+							u_f_sig = a.sigma_data.get(ref).get(field);
+						} else {
+							u_f_sig = Sets.union(this.sigma(ref, field), a.sigma(ref, field));
+						}
+						this.sigma_data.get(ref).put(field, u_f_sig);
+					}
+				}
+			}
 			return this;
 		}
 		Out() {
@@ -98,13 +112,64 @@ public class AliasAnalysis extends BodyTransformer{
 		return temp;
 	}
 
+	//debug information
 	void debug(Object s) { System.out.println(s); }
+
+	void print_out(Out o) {
+		debug("Stack Space Data");
+		for(String name: o.rho_data.keySet()) {
+			for(String ref: o.rho(name)) {
+				debug(name + "->" + ref);
+			}
+		}
+
+		debug("Heap Space Data");
+		for(String ref: o.sigma_data.keySet()) {
+			for(String field: o.sigma_data.get(ref).keySet()) {
+				for(String ref1: o.sigma(ref, field)) {
+					debug(ref + "-" + field + "->" + ref1);
+				}
+			}
+		}
+	}
+	//create two out and checks union
+	void test() {
+		Out a = new Out();
+		Out b = new Out();
+
+		//defining the stack space
+		Set<String> temp = new HashSet<>();
+		temp.add("O1");
+		temp.add("O2");
+		a.rho_data.put("a1", temp);
+		temp = new HashSet<>();
+		temp.add("O1");
+		a.rho_data.put("b1", temp);
+		b.rho_data.put("a1", temp);
+		temp = new HashSet<>();
+		temp.add("O2");
+		b.rho_data.put("b1", temp);
+
+		//defining the heap space
+
+
+		debug("a before union");
+		print_out(a);
+		debug("b before union");
+		print_out(b);
+		a = b.union(a);
+		debug("after union");
+		print_out(a);
+	}
+
 	@Override
 	protected synchronized void internalTransform(Body arg0, String arg1, Map<String, String> arg2) {
 		/*
 		 * Implement your alias analysis here. A1.answers should include the Yes/No answers for 
 		 * the queries
 		 */
+
+		test();
 		debug(arg0.getMethod().getName());
 		debug(arg0.getMethod().getDeclaringClass());
 		UnitGraph g = new BriefUnitGraph(arg0);
