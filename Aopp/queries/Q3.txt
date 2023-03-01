@@ -1,0 +1,8 @@
+LS:list:a alias b
+LS:list:a alias c
+LS:list:a alias g
+LS:list:c alias g
+LS:list:e alias g
+LS:list:c alias d
+LS:list:d alias g
+LS:list:d alias e

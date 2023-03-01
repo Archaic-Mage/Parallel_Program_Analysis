@@ -31,8 +31,10 @@ public class A1 {
       
       
         soot.Main.main(mainArgs);
-        
-        System.out.println(answers);
+
+		for(String answer: answers) {
+			System.out.println(answer);
+		}
 	}
 	
 
@@ -64,9 +66,9 @@ public class A1 {
 	
 	static String[] getOptions(String args[]) {
 		String classPath = "inputs";
-		String argumentClass = "P1";
+		String argumentClass = "P2";
 		if(System.getProperty("test.file") == null) {
-			testFilePath = "queries/Q1.txt";
+			testFilePath = "queries/Q2.txt";
 		}
 		else
 			testFilePath = System.getProperty("test.file");

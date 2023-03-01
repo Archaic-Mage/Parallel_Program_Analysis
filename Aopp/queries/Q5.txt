@@ -1,0 +1,6 @@
+FC:m1:a alias c
+FC:m1:a alias d
+FC:m1:a alias i
+FC:m1:a alias b
+FC:m1:d alias i
+FC:m1:c alias b

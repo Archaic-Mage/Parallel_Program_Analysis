@@ -1,0 +1,6 @@
+Test:list:head alias ptr
+Test:list:head alias x
+Test:list:x alias y
+Test:list:ptr alias x
+Test:list:temp alias ptr
+Test:list:head alias temp
