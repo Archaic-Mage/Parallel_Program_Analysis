@@ -73,12 +73,11 @@ public class AliasAnalysis extends BodyTransformer{
     }
     HashMap<Unit, Out> get_out;
 	Out union(List<Out> outs) {
-		Out uni = outs.get(0);
-		for(int i = 1; i < outs.size(); i++) {
+		Out uni = new Out();
+		for(int i = 0; i < outs.size(); i++) {
 			uni = uni.union(outs.get(i));
 		}
-		Out temp = new Out();
-		return temp;
+		return uni;
 	}
     Out process_assign(Unit s, UnitGraph g) {
 		AssignStmt a_s = (AssignStmt) s;
@@ -102,6 +101,26 @@ public class AliasAnalysis extends BodyTransformer{
 			in.rho_data.put(left.toString(), replace);
 			return in;
         }
+		//copy type a = b
+		if(left instanceof JimpleLocal && right instanceof JimpleLocal) {
+			Set<String> replace = new HashSet<>(in.rho(right.toString()));
+			in.rho_data.put(left.toString(), replace);
+			return in;
+		}
+		//field copy a = b.f
+		if(left instanceof JimpleLocal && right instanceof JInstanceFieldRef) {
+			Set<String> replace = new HashSet<>();
+			String field = ((JInstanceFieldRef) right).getField().getName();
+			for(String ref: in.rho_data.get(right.toString())) {
+				replace = Sets.union(replace, in.sigma(ref, field));
+			}
+			in.rho_data.put(left.toString(), replace);
+			return in;
+		}
+		//assign return of a call a = b.foo(args...)
+//		if(left instanceof JimpleLocal && right instanceof InvokeExpr) {
+//
+//		}
         Out temp = new Out();
         return temp;
     }
@@ -151,6 +170,20 @@ public class AliasAnalysis extends BodyTransformer{
 		b.rho_data.put("b1", temp);
 
 		//defining the heap space
+		temp = new HashSet<>();
+		temp.add("O1");
+		temp.add("O2");
+		HashMap<String, Set<String>> fields = new HashMap<>();
+		fields.put("test", temp);
+		temp = new HashSet<>();
+		temp.add("O3");
+		fields.put("test2", temp);
+		a.sigma_data.put("O5", fields);
+		fields = new HashMap<>();
+		temp = new HashSet<>();
+		temp.add("O2");
+		fields.put("test", temp);
+		b.sigma_data.put("O6", fields);
 
 
 		debug("a before union");
@@ -169,7 +202,6 @@ public class AliasAnalysis extends BodyTransformer{
 		 * the queries
 		 */
 
-		test();
 		debug(arg0.getMethod().getName());
 		debug(arg0.getMethod().getDeclaringClass());
 		UnitGraph g = new BriefUnitGraph(arg0);
