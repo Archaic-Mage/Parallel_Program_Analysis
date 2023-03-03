@@ -1,5 +1,6 @@
 package submit_a1;
 
+import java.lang.reflect.Field;
 import java.util.*;
 
 import com.google.common.collect.Sets;
@@ -24,7 +25,6 @@ import soot.toolkits.graph.UnitGraph;
 
 public class AliasAnalysis extends BodyTransformer{
 
-
     //the out contains static info stack and heap
     public class Out {
 		//Og indicates global reference
@@ -39,6 +39,7 @@ public class AliasAnalysis extends BodyTransformer{
             return rho_data.get(a);
         }
         public Set<String> sigma(String ref, String field) {
+			if(sigma_data.get(ref).containsKey("@")) return sigma_data.get(ref).get("@");
             return sigma_data.get(ref).get(field);
         }
 		Out union(Out a) {
@@ -46,7 +47,10 @@ public class AliasAnalysis extends BodyTransformer{
 			for(String name: a.rho_data.keySet()) {
 				Set<String> u_rho;
 				if(!this.rho_data.containsKey(name)) {
-					u_rho = a.rho(name);
+					u_rho = new HashSet<>(a.rho(name));
+				} else if(this.rho(name).contains("Og") || a.rho(name).contains("Og")) {
+					u_rho = new HashSet<>();
+					u_rho.add("Og");
 				} else {
 					u_rho = Sets.union(this.rho_data.get(name), a.rho(name));
 				}
@@ -56,12 +60,23 @@ public class AliasAnalysis extends BodyTransformer{
 			for(String ref: a.sigma_data.keySet()) {
 				if(!this.sigma_data.containsKey(ref)) {
 					this.sigma_data.put(ref, a.sigma_data.get(ref));
-				} else {
+				} else if(this.sigma_data.get(ref).containsKey("@") || a.sigma_data.get(ref).containsKey("@")) {
+					Set<String> replace = new HashSet<>();
+					replace.add("Og");
+					HashMap<String, Set<String>> to_change = new HashMap<>();
+					to_change.put("@", replace);
+					this.sigma_data.put(ref, to_change);
+				}
+				else {
 					for(String field: a.sigma_data.get(ref).keySet()) {
 						Set<String> u_f_sig;
 						if(!this.sigma_data.get(ref).containsKey(field)) {
-							u_f_sig = a.sigma_data.get(ref).get(field);
-						} else {
+							u_f_sig = new HashSet<>(a.sigma(ref, field));
+						} else if(this.sigma(ref, field).contains("Og") || a.sigma(ref, field).contains("Og")) {
+							u_f_sig = new HashSet<>();
+							u_f_sig.add("Og");
+						}
+						else {
 							u_f_sig = Sets.union(this.sigma(ref, field), a.sigma(ref, field));
 						}
 						this.sigma_data.get(ref).put(field, u_f_sig);
@@ -99,8 +114,8 @@ public class AliasAnalysis extends BodyTransformer{
     HashMap<Unit, Out> get_out;
 	Out union(List<Out> outs) {
 		Out uni = new Out();
-		for(int i = 0; i < outs.size(); i++) {
-			uni = uni.union(outs.get(i));
+		for (Out out : outs) {
+			uni = uni.union(out);
 		}
 		return uni;
 	}
@@ -118,12 +133,14 @@ public class AliasAnalysis extends BodyTransformer{
         Value right = a_s.getRightOp();
 
 		//allocation type a = new b();
-        if(left instanceof JimpleLocal && right instanceof JNewExpr) {
+        if(((left instanceof JInstanceFieldRef && ((JInstanceFieldRef) left).getBase().toString().equals("this")) || left instanceof JimpleLocal) && right instanceof JNewExpr) {
 			int ln = ((SourceLnPosTag) s.getTag("SourceLnPosTag")).startLn();
 			String ref = "O"+ln;
 			Set<String> replace = new HashSet<>();
+			HashMap<String, Set<String>> heap_init = new HashMap<>();
 			replace.add(ref);
 			in.rho_data.put(left.toString(), replace);
+			in.sigma_data.put(ref, heap_init);
 			return in;
         }
 		//copy type a = b
@@ -137,17 +154,66 @@ public class AliasAnalysis extends BodyTransformer{
 		if(left instanceof JimpleLocal && right instanceof JInstanceFieldRef) {
 			Set<String> replace = new HashSet<>();
 			String field = ((JInstanceFieldRef) right).getField().getName();
-			for(String ref: in.rho_data.get(right.toString())) {
-				replace = Sets.union(replace, in.sigma(ref, field));
+			if(in.rho_data.get(((JInstanceFieldRef) right).getBase().toString()).contains("Og")) {
+				replace.add("Og");
+			} else {
+				for(String ref: in.rho_data.get(((JInstanceFieldRef) right).getBase().toString())) {
+					replace = Sets.union(replace, in.sigma(ref, field));
+				}
+				if(replace.contains("Og")) {
+					replace.clear();
+					replace.add("Og");
+				}
 			}
 			in.rho_data.put(left.toString(), replace);
 			return in;
 		}
 		//assign return of a call a = b.foo(args...)
-		if(left instanceof JimpleLocal && right instanceof InvokeExpr) {
+		if(left instanceof JimpleLocal && right instanceof JVirtualInvokeExpr) {
 			//a points to Og
 			Set<String> replace = new HashSet<>();
+			replace.add("Og");
+			in.rho_data.put(left.toString(), replace);
 
+			//all b.f points to Og
+			if(!((JVirtualInvokeExpr) right).getBase().toString().equals("this")) {
+				for(String ref : in.rho(((JVirtualInvokeExpr) right).getBase().toString())) {
+					HashMap<String, Set<String>> change_to = new HashMap<>();
+					change_to.put("@", replace);
+					in.sigma_data.put(ref, change_to);
+				}
+			}
+
+			//all args.f points to Og
+			for(Value arg : ((JVirtualInvokeExpr) right).getArgs()) {
+				for(String ref: in.rho(arg.toString())) {
+					HashMap<String, Set<String>> change_to = new HashMap<>();
+					change_to.put("@", replace);
+					in.sigma_data.put(ref, change_to);
+				}
+			}
+			return in;
+		}
+		//type; a.f = b
+		if(left instanceof JInstanceFieldRef && right instanceof JimpleLocal) {
+			if(in.rho(((JInstanceFieldRef) left).getBase().toString()).contains("Og")) {
+				return in;
+			}
+			String field = ((JInstanceFieldRef) left).getField().getName();
+			for(String ref : in.rho(((JInstanceFieldRef) left).getBase().toString())) {
+				if(in.sigma_data.get(ref).containsKey("@")) continue;
+				Set<String> replace = new HashSet<>();
+				if(in.rho(((JInstanceFieldRef) left).getBase().toString()).size() == 1) {
+					replace.addAll(in.rho(right.toString()));
+				} else {
+					if(in.sigma(ref, field) != null) replace.addAll(in.sigma(ref, field));
+					replace = Sets.union(replace, in.rho(right.toString()));
+				}
+				HashMap<String, Set<String>> to_change = new HashMap<>(in.sigma_data.get(ref));
+				to_change.put(field, replace);
+				in.sigma_data.put(ref, to_change);
+			}
+			return in;
 		}
 
         return in;
@@ -160,7 +226,9 @@ public class AliasAnalysis extends BodyTransformer{
 	}
 
 	//debug information
-	void debug(Object s) { System.out.println(s); }
+	void debug(Object s) {
+		System.out.println(s);
+	}
 
 	void print_out(Out o) {
 		debug("------------------");
@@ -231,8 +299,8 @@ public class AliasAnalysis extends BodyTransformer{
 		 * the queries
 		 */
 
-		debug(arg0.getMethod().getName());
 		debug(arg0.getMethod().getDeclaringClass());
+		debug(arg0.getMethod().getName());
 		UnitGraph g = new BriefUnitGraph(arg0);
 
 		//initialize everything with top
@@ -261,8 +329,6 @@ public class AliasAnalysis extends BodyTransformer{
 				}
 			}
 
-			//print_out(out);
-
 			if(!get_out.get(to_process).isEqual(out)) {
 				get_out.put(to_process, out);
 				for(Unit suc: g.getSuccsOf(to_process)) {
@@ -275,40 +341,25 @@ public class AliasAnalysis extends BodyTransformer{
 			}
 		}
 
-		print_out(get_out.get(g.getTails().get(0)));
-
-//		for(Unit s: get_out.keySet()) {
-//			print_out(get_out.get(s));
-//		}
-
-//		for(Unit s : g) {
-//			if(s instanceof AssignStmt) {
-//				debug(s);
-//				Value l = ((AssignStmt) s).getLeftOp();
-//				Value r = ((AssignStmt) s).getRightOp();
-//				debug(l + ": " + l.getClass());
-////				if(l instanceof JInstanceFieldRef) {
-////					System.out.println(((JInstanceFieldRef) l).getBase());
-////					System.out.println(((JInstanceFieldRef) l).getField().getName());
-////				}
-//				System.out.println(r + ": " + r.getClass());
-////				if(r instanceof JInstanceFieldRef) {
-////					System.out.println(((JInstanceFieldRef) r).getBase());
-////					System.out.println(((JInstanceFieldRef) r).getField().getName());
-////				}
-////				if(r instanceof JVirtualInvokeExpr) {
-////					System.out.println(((JVirtualInvokeExpr) r).getBase());
-////					System.out.println(((JVirtualInvokeExpr) r).getMethod().getName());
-////					System.out.println(((JVirtualInvokeExpr) r).getArgs());
-////				}
-//				System.out.println("-----");
-//			}
-//		}
+		Out end_out = get_out.get(g.getTails().get(0));
+		print_out(end_out);
 
 		for(AliasQuery q: A1.queryList) {
 			if(q.getClassName().equals(arg0.getMethod().getDeclaringClass().toString())) {
 				if(q.getMethodName().equals(arg0.getMethod().getName())) {
-					A1.answers[A1.queryList.indexOf(q)] = "Yes";
+					//may analysis so default case is taken to be yes
+					String ans = "Yes";
+					String left = q.getLeftVar();
+					String right = q.getRightVar();
+					Set<String> left_rho = new HashSet<>();
+					Set<String> right_rho = end_out.rho(right);
+					if(end_out.rho_data.containsKey(left)) left_rho.addAll(end_out.rho(left));
+					//by checking our analysis we report no
+					if(right_rho == null || left_rho.isEmpty()) ans = "No";
+					else if(!left_rho.contains("Og") && !right_rho.contains("Og")) {
+						if(!left_rho.removeAll(right_rho)) ans = "No";
+					}
+					A1.answers[A1.queryList.indexOf(q)] = ans;
 				}
 			}
 		}

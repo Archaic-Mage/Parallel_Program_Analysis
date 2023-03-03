@@ -66,9 +66,9 @@ public class A1 {
 	
 	static String[] getOptions(String args[]) {
 		String classPath = "inputs";
-		String argumentClass = "P2";
+		String argumentClass = "P5";
 		if(System.getProperty("test.file") == null) {
-			testFilePath = "queries/Q2.txt";
+			testFilePath = "queries/Q5.txt";
 		}
 		else
 			testFilePath = System.getProperty("test.file");

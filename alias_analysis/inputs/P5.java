@@ -15,7 +15,7 @@ class Data {
         d = new Data();
         return i;
     }
-    public Data get() {
+    public Data get(Data a) {
         return d;        
     }
 }
@@ -34,9 +34,9 @@ class FC extends Data {
         Data i;
         int j;
         a = new Data();
-        //i = this.set(a);
+        i = this.get(a);
         j = this.set(a);
-        b = this.get();
+        b = this.get(a);
         c = new MData();
         d = new Data();
         c.type = d;
