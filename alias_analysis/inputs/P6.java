@@ -1,6 +1,6 @@
 // Special cases
 
-class P1 {
+class P6 {
 	public static void main(String[] args) {
 		int a;
 		a = 10;

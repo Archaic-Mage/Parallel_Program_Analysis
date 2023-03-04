@@ -5,18 +5,9 @@ import java.util.*;
 
 import com.google.common.collect.Sets;
 import dont_submit.AliasQuery;
-import soot.Body;
-import soot.BodyTransformer;
-import soot.Unit;
-import soot.Value;
-import soot.jimple.AssignStmt;
-import soot.jimple.InvokeExpr;
-import soot.jimple.Jimple;
-import soot.jimple.Stmt;
-import soot.jimple.internal.JInstanceFieldRef;
-import soot.jimple.internal.JNewExpr;
-import soot.jimple.internal.JVirtualInvokeExpr;
-import soot.jimple.internal.JimpleLocal;
+import soot.*;
+import soot.jimple.*;
+import soot.jimple.internal.*;
 import soot.tagkit.LineNumberTag;
 import soot.tagkit.SourceLnPosTag;
 import soot.tagkit.Tag;
@@ -39,7 +30,7 @@ public class AliasAnalysis extends BodyTransformer{
             return rho_data.get(a);
         }
         public Set<String> sigma(String ref, String field) {
-			if(sigma_data.get(ref).containsKey("@")) return sigma_data.get(ref).get("@");
+			if(!sigma_data.get(ref).containsKey(field) && sigma_data.get(ref).containsKey("@")) return sigma_data.get(ref).get("@");
             return sigma_data.get(ref).get(field);
         }
 		Out union(Out a) {
@@ -101,7 +92,7 @@ public class AliasAnalysis extends BodyTransformer{
 				if(!this.sigma_data.containsKey(ref)) return false;
 				else {
 					if(a.sigma_data.get(ref).size() != this.sigma_data.get(ref).size()) return false;
-					for(String field: a.sigma_data.keySet()) {
+					for(String field: a.sigma_data.get(ref).keySet()) {
 						if(!this.sigma_data.get(ref).containsKey(field)) return false;
 						else if(!a.sigma(ref, field).equals(this.sigma(ref, field))) return false;
 					}
@@ -133,7 +124,7 @@ public class AliasAnalysis extends BodyTransformer{
         Value right = a_s.getRightOp();
 
 		//allocation type a = new b();
-        if(((left instanceof JInstanceFieldRef && ((JInstanceFieldRef) left).getBase().toString().equals("this")) || left instanceof JimpleLocal) && right instanceof JNewExpr) {
+        if(left instanceof JimpleLocal && right instanceof JNewExpr) {
 			int ln = ((SourceLnPosTag) s.getTag("SourceLnPosTag")).startLn();
 			String ref = "O"+ln;
 			Set<String> replace = new HashSet<>();
@@ -157,11 +148,11 @@ public class AliasAnalysis extends BodyTransformer{
 			if(in.rho_data.get(((JInstanceFieldRef) right).getBase().toString()).contains("Og")) {
 				replace.add("Og");
 			} else {
-				for(String ref: in.rho_data.get(((JInstanceFieldRef) right).getBase().toString())) {
+				for(String ref: in.rho(((JInstanceFieldRef) right).getBase().toString())) {
 					replace = Sets.union(replace, in.sigma(ref, field));
 				}
 				if(replace.contains("Og")) {
-					replace.clear();
+					replace = new HashSet<>();
 					replace.add("Og");
 				}
 			}
@@ -201,11 +192,11 @@ public class AliasAnalysis extends BodyTransformer{
 			}
 			String field = ((JInstanceFieldRef) left).getField().getName();
 			for(String ref : in.rho(((JInstanceFieldRef) left).getBase().toString())) {
-				if(in.sigma_data.get(ref).containsKey("@")) continue;
 				Set<String> replace = new HashSet<>();
 				if(in.rho(((JInstanceFieldRef) left).getBase().toString()).size() == 1) {
 					replace.addAll(in.rho(right.toString()));
-				} else {
+				} else if(in.sigma_data.get(ref).containsKey("@")) continue;
+				else {
 					if(in.sigma(ref, field) != null) replace.addAll(in.sigma(ref, field));
 					replace = Sets.union(replace, in.rho(right.toString()));
 				}
@@ -219,6 +210,39 @@ public class AliasAnalysis extends BodyTransformer{
         return in;
     }
 
+	Out process_identity(Unit s, UnitGraph g) {
+		JIdentityStmt a_s = (JIdentityStmt) s;
+		List<Unit> pred_s = g.getPredsOf(s);
+		List<Out> pred_outs = new ArrayList<>();
+		for(Unit pred: pred_s) {
+			pred_outs.add(get_out.get(pred));
+		}
+
+		Out in = union(pred_outs);
+		Value left = a_s.getLeftOp();
+		Value right = a_s.getRightOp();
+
+		if(right instanceof ThisRef) {
+			Set<String> replace = new HashSet<>();
+			HashMap<String, Set<String>> to_change = new HashMap<>();
+			replace.add(right.getType().toString());
+			in.rho_data.put(left.toString(), replace);
+			replace = new HashSet<>();
+			replace.add("Og");
+			to_change.put("@", replace);
+			in.sigma_data.put(right.getType().toString(), to_change);
+			return in;
+		}
+
+		if(right instanceof ParameterRef) {
+			Set<String> replace = new HashSet<>();
+			replace.add("Og");
+			in.rho_data.put(left.toString(), replace);
+			return in;
+		}
+
+		return in;
+	}
 	Out process_invoke(Unit s, UnitGraph g) {
 		InvokeExpr i_e = ((Stmt) s).getInvokeExpr();
 		Out temp = new Out();
@@ -305,10 +329,12 @@ public class AliasAnalysis extends BodyTransformer{
 
 		//initialize everything with top
 		get_out = new HashMap<>();
+
 		for(Unit s: g) {
 			Out out = new Out();
 			get_out.put(s, out);
 		}
+		//head contains arguments and this pointer
 
 		Stack<Unit> work_list = new Stack<>();
 		Set<Unit> visited = new HashSet<>();
@@ -321,14 +347,16 @@ public class AliasAnalysis extends BodyTransformer{
 			//debug(to_process);
 			if(to_process instanceof AssignStmt) {
 				out = process_assign(to_process, g);
-			} /*else if(((Stmt) to_process).containsInvokeExpr()) {
+			} else if(to_process instanceof JIdentityStmt) {
+				out = process_identity(to_process, g);
+			}
+			/*else if(((Stmt) to_process).containsInvokeExpr()) {
 				out = process_invoke(to_process, g);
 			} */else {
 				for(Unit pred: g.getPredsOf(to_process)) {
 					out = out.union(get_out.get(pred));
 				}
 			}
-
 			if(!get_out.get(to_process).isEqual(out)) {
 				get_out.put(to_process, out);
 				for(Unit suc: g.getSuccsOf(to_process)) {
@@ -352,8 +380,11 @@ public class AliasAnalysis extends BodyTransformer{
 					String left = q.getLeftVar();
 					String right = q.getRightVar();
 					Set<String> left_rho = new HashSet<>();
-					Set<String> right_rho = end_out.rho(right);
+					Set<String> right_rho;
 					if(end_out.rho_data.containsKey(left)) left_rho.addAll(end_out.rho(left));
+					else left_rho.addAll(end_out.sigma(q.getClassName(), left));
+					if(end_out.rho_data.containsKey(right)) right_rho = end_out.rho(right);
+					else right_rho = end_out.sigma(q.getClassName(), right);
 					//by checking our analysis we report no
 					if(right_rho == null || left_rho.isEmpty()) ans = "No";
 					else if(!left_rho.contains("Og") && !right_rho.contains("Og")) {

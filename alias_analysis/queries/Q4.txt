@@ -1,4 +1,6 @@
 Global:m1:o1 alias a
+Global:m1:a alias o1
+Second_Global:m2:u alias a
 Global:m1:b alias c
 Global:m1:a alias c
 Global:m1:d alias c
