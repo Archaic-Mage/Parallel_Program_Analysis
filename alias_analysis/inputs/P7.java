@@ -1,32 +1,43 @@
-/* package codechef; // don't place package name! */
-
-import java.util.*;
-import java.lang.*;
-import java.io.*;
-
-/* Name of the class has to be "Main" only if the class is public. */
-class Codechef
-{
-    public static void main (String[] args) throws java.lang.Exception
-    {
-        // your code goes here
-        A y;
-        A x;
-        y = new A();
-        if(false) {
-            y = new B();
-        }
-        x = y.f2;
+//for loading type statements and storing type
+class P7 {
+    public static void main(String[] args) {
+        int a;
+        a=0;
+        System.out.println(a);
     }
 }
 
-class A {
-    Data f1;
-}
-class B extends A {
-    Data f2;
+class LS {
+    public int list() {
+        Data a;
+        Data b;
+        Data c;
+        Data d;
+        int i;
+        boolean f;
+        int j;
+        i = 1;
+        j = 0;
+        f = i < j;
+        a = new Data();
+        d = a;
+        b = new Data();
+        j = a.foo();
+        if(f) {
+            a = new Data();
+        }
+        a.type = b;
+        c = a.type;
+        return j;
+    }
 }
 
 class Data {
-    int f;
+    int q;
+    Data type;
+    public int foo() {
+        int a;
+        a = 0;
+        return a;
+    }
 }
