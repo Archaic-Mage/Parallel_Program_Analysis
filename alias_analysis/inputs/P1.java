@@ -1,27 +1,45 @@
 
 class P1 {
-  void m1() {
-	 A x,y;
-	 x = new A();
-	 y = new A();
-	 x.foo();
-	 y.foo();
-	 
- }
-  void m2() {
-	  A a,b,z;
-	  boolean c = true;
-		 a = new A();
-		 b = new A();
-		 if(c)
-		  z = a;
-		 else
-			z = b;
-		 z.foo();
- }
+	public static void main(String[] args) {
+		int a;
+		a=0;
+		System.out.println(a);
+	}
+}
+
+class A2 {
+	public int m1() {
+		A x;
+		A y;
+		int a;
+		a=0;
+		x = new A();
+		y = new A();
+		a = x.foo();
+		a = y.foo();
+		return a;
+	}
+	public int m2() {
+		A a;
+		A b;
+		A z;
+		int k;
+		boolean c;
+		k = 0;
+		c = true;
+		a = new A();
+		b = new A();
+		if(c) z = a;
+		else z = b;
+		k = z.foo();
+		return k;
+	}
 }
 class A{
-	void foo() {
-		System.out.println(10);
+	public int foo() {
+		int a;
+		a=10;
+		System.out.println(a);
+		return a;
 	}
 }

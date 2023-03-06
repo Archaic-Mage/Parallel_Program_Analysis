@@ -19,7 +19,8 @@ class Global {
         int i;
         boolean g;
         a = new Data();
-        a.type = new Data();
+        e = new Data();
+        a.type = e;
         b = o1;
         d = a.type;
         r = 0;
@@ -41,11 +42,13 @@ class Second_Global extends Global {
         Data b;
         Data c;
         Data d;
+        Data e;
         int r;
         int i;
         boolean g;
         a = new Data();
-        a.type = new Data();
+        e = new Data();
+        a.type = e;
         b = u;
         d = a.type;
         r = 0;

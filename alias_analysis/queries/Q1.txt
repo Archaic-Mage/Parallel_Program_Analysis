@@ -1,4 +1,4 @@
-P1:m1:x alias y
-P1:m2:a alias z
-P1:m2:a alias b
-P1:m2:b alias z
+A2:m1:x alias y
+A2:m2:a alias z
+A2:m2:a alias b
+A2:m2:b alias z

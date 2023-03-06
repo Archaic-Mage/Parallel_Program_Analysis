@@ -21,6 +21,9 @@ class LS {
         b = new Data();
         a = new Data();
         if(f) a = new Data();
+        else {
+            System.out.println(i);
+        }
         c = new Data();
         a.type = b;
         a.type = c;

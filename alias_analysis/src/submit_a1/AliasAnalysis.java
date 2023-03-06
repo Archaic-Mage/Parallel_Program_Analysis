@@ -112,7 +112,7 @@ public class AliasAnalysis extends BodyTransformer{
 			return true;
 		}
     }
-    HashMap<Unit, Out> get_out;
+    //HashMap<Unit, Out> get_out;
 	Out union(List<Out> outs) {
 		Out uni = new Out();
 		for (Out out : outs) {
@@ -120,7 +120,7 @@ public class AliasAnalysis extends BodyTransformer{
 		}
 		return uni;
 	}
-    Out process_assign(Unit s, UnitGraph g) {
+    Out process_assign(Unit s, UnitGraph g, HashMap<Unit, Out> get_out) {
 		AssignStmt a_s = (AssignStmt) s;
         //gets the out of predecessors and applies the flow functions to get the out of the current statement
 		List<Unit> pred_s = g.getPredsOf(s);
@@ -226,7 +226,7 @@ public class AliasAnalysis extends BodyTransformer{
         return in;
     }
 
-	Out process_identity(Unit s, UnitGraph g) {
+	Out process_identity(Unit s, UnitGraph g, HashMap<Unit, Out> get_out) {
 		JIdentityStmt a_s = (JIdentityStmt) s;
 		List<Unit> pred_s = g.getPredsOf(s);
 		List<Out> pred_outs = new ArrayList<>();
@@ -259,7 +259,7 @@ public class AliasAnalysis extends BodyTransformer{
 
 		return in;
 	}
-	Out process_invoke(Unit s, UnitGraph g) {
+	Out process_invoke(Unit s, UnitGraph g, HashMap<Unit, Out> get_out) {
 		InvokeExpr right = ((Stmt) s).getInvokeExpr();
 
 		List<Unit> pred_s = g.getPredsOf(s);
@@ -325,7 +325,7 @@ public class AliasAnalysis extends BodyTransformer{
 	}
 
 	@Override
-	protected synchronized void internalTransform(Body arg0, String arg1, Map<String, String> arg2) {
+	protected void internalTransform(Body arg0, String arg1, Map<String, String> arg2) {
 		/*
 		 * Implement your alias analysis here. A1.answers should include the Yes/No answers for 
 		 * the queries
@@ -336,6 +336,7 @@ public class AliasAnalysis extends BodyTransformer{
 		debug(arg0.getMethod().getName());
 		UnitGraph g = new BriefUnitGraph(arg0);
 
+		HashMap<Unit, Out> get_out;
 		//initialize everything with top
 		get_out = new HashMap<>();
 
@@ -354,13 +355,13 @@ public class AliasAnalysis extends BodyTransformer{
 			Out out = new Out();
 
 			if(to_process instanceof AssignStmt) {
-				out = process_assign(to_process, g);
+				out = process_assign(to_process, g, get_out);
 			}
 			else if(to_process instanceof JIdentityStmt) {
-				out = process_identity(to_process, g);
+				out = process_identity(to_process, g, get_out);
 			}
 			else if(((Stmt) to_process).containsInvokeExpr()) {
-				out = process_invoke(to_process, g);
+				out = process_invoke(to_process, g, get_out);
 			}
 			else {
 				for(Unit pred: g.getPredsOf(to_process)) {
