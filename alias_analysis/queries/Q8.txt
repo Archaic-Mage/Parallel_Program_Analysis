@@ -1,0 +1,3 @@
+LS:list:b alias c
+LS:list:a alias d
+LS:list:d alias c

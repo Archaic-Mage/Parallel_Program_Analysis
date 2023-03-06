@@ -53,7 +53,7 @@ public class A1 {
 				String[] query = tokens[2].split(" ");
 				
 				AliasQuery aq = new AliasQuery(className, methName, query[0], query[2]);
-				System.out.println(aq);
+				//System.out.println(aq);
 				queryList.add(aq);	
 				line = bufRdr.readLine();
 			}
@@ -66,9 +66,9 @@ public class A1 {
 	
 	static String[] getOptions(String args[]) {
 		String classPath = "inputs";
-		String argumentClass = "P7";
+		String argumentClass = "P4";
 		if(System.getProperty("test.file") == null) {
-			testFilePath = "queries/Q7.txt";
+			testFilePath = "queries/Q4.txt";
 		}
 		else
 			testFilePath = System.getProperty("test.file");

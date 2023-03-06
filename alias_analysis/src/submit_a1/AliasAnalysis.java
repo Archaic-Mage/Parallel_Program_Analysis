@@ -34,7 +34,7 @@ public class AliasAnalysis extends BodyTransformer{
 			if(!sigma_data.get(ref).containsKey(field) && sigma_data.get(ref).containsKey("@")) return sigma_data.get(ref).get("@");
             return sigma_data.get(ref).get(field);
         }
-		//definition of union -> changes the object which calls it.
+		//union -> changes the object which calls it.
 		Out union(Out a) {
 			//Union of rho_data
 			for(String name: a.rho_data.keySet()) {
@@ -301,7 +301,7 @@ public class AliasAnalysis extends BodyTransformer{
 
 	//debug information
 	void debug(Object s) {
-		System.out.println(s);
+		//System.out.println(s);
 	}
 
 	void print_out(Out o) {
@@ -343,7 +343,6 @@ public class AliasAnalysis extends BodyTransformer{
 			Out out = new Out();
 			get_out.put(s, out);
 		}
-		//head contains arguments and this pointer
 
 		Stack<Unit> work_list = new Stack<>();
 		Set<Unit> visited = new HashSet<>();
@@ -353,7 +352,7 @@ public class AliasAnalysis extends BodyTransformer{
 			Unit to_process = work_list.pop();
 			visited.add(to_process);
 			Out out = new Out();
-			//debug(to_process);
+
 			if(to_process instanceof AssignStmt) {
 				out = process_assign(to_process, g);
 			}
