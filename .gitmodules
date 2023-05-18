@@ -1,0 +1,3 @@
+[submodule "context-sensitive-mhp-analysis"]
+	path = context-sensitive-mhp-analysis
+	url = https://github.com/DMaroo/context-sensitive-mhp-analysis.git
